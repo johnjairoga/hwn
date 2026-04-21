@@ -172,14 +172,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(
-    "index.html",
-    {
-        "request": request,
-        "result": None,
-        "job_description": "",
-    },
-)
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/analyze", response_class=HTMLResponse)
