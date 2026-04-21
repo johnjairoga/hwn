@@ -2,6 +2,7 @@ import io
 import json
 import logging
 import os
+from pathlib import Path
 import time
 
 import anthropic
@@ -18,7 +19,13 @@ logger = logging.getLogger(__name__)
 logger.info("HireWithNear app starting - v1.0 with Starlette Jinja2Templates")
 
 app = FastAPI(title="HireWithNear – AI Candidate Evaluator")
-templates = Jinja2Templates(directory="templates")
+
+# Use absolute path for templates directory
+base_dir = Path(__file__).parent.absolute()
+template_dir = base_dir / "templates"
+logger.info(f"Template directory: {template_dir} (exists: {template_dir.exists()})")
+
+templates = Jinja2Templates(directory=str(template_dir))
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 MAX_CV_CHARS = 5000
