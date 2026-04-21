@@ -2,6 +2,7 @@ import io
 import json
 import logging
 import os
+from pathlib import Path
 import time
 
 import anthropic
@@ -9,7 +10,6 @@ import pdfplumber
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 load_dotenv()
@@ -18,7 +18,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="HireWithNear – AI Candidate Evaluator")
-templates = Jinja2Templates(directory="templates")
+template_dir = Path(__file__).parent / "templates"
+templates = Jinja2Templates(directory=str(template_dir))
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 MAX_CV_CHARS = 5000
