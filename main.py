@@ -15,6 +15,7 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+logger.info("HireWithNear app starting - v1.0 with Starlette Jinja2Templates")
 
 app = FastAPI(title="HireWithNear – AI Candidate Evaluator")
 templates = Jinja2Templates(directory="templates")
