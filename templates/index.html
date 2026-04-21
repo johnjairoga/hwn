@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HireWithNear – AI Candidate Evaluator</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .form-container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        textarea,
+        input[type="file"] {
+            font-family: inherit;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 160px;
+        }
+
+        textarea:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        button[type="submit"] {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button[type="submit"]:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+
+        button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        button[type="submit"]:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-card {
+            background: #fee;
+            border: 2px solid var(--danger);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--danger);
+            font-weight: 500;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-card h2 {
+            font-size: 1.875rem;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+        }
+
+        .summary {
+            color: var(--gray-700);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .score-bar {
+            margin-bottom: 2rem;
+        }
+
+        .score-bar label {
+            margin-bottom: 0.75rem;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 12px;
+            background: var(--gray-200);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 999px;
+        }
+
+        .progress-fill[data-fit="poor"] {
+            background: var(--danger);
+        }
+
+        .progress-fill[data-fit="partial"] {
+            background: var(--warning);
+        }
+
+        .progress-fill[data-fit="good"] {
+            background: var(--info);
+        }
+
+        .progress-fill[data-fit="strong"] {
+            background: var(--success);
+        }
+
+        .columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .column h3 {
+            font-size: 1.1rem;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .column ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .column li {
+            padding: 0.5rem 0;
+            color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-100);
+            position: relative;
+            padding-left: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .column li:last-child {
+            border-bottom: none;
+        }
+
+        .column li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        @media (max-width: 640px) {
+            header h1 {
+                font-size: 1.875rem;
+            }
+
+            .form-container,
+            .result-card {
+                padding: 1.5rem;
+            }
+
+            .columns {
+                grid-template-columns: 1fr;
+            }
+
+            button[type="submit"] {
+                padding: 0.875rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>HireWithNear – AI Candidate Evaluator</h1>
+        <p class="subtitle">Quickly evaluate candidate fit using AI By John Garcia</p>
+    </header>
+
+    <main>
+        <div class="form-container">
+            <form method="post" action="/analyze" enctype="multipart/form-data">
+                <div>
+                    <label for="job_description">Job Description</label>
+                    <textarea id="job_description" name="job_description" required placeholder="Paste the job description here..."></textarea>
+                </div>
+
+                <div>
+                    <label for="file">Upload CV (PDF only, max 5MB)</label>
+                    <input id="file" type="file" name="file" accept=".pdf,application/pdf" required>
+                </div>
+
+                <button type="submit">Analyze Candidate</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="error-card">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        {% if result %}
+        <section class="result-card">
+            <h2>{{ result.display_match }}</h2>
+            <p class="summary">{{ result.summary }}</p>
+
+            <div class="score-bar">
+                <label>Match Score: {{ result.score }}/100</label>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ result.score }}%" data-fit="{{ result.fit }}"></div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <h3>Strengths</h3>
+                    <ul>
+                        {% for s in result.strengths %}<li>{{ s }}</li>{% endfor %}
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Areas for Improvement</h3>
+                    <ul>
+                        {% for w in result.weaknesses %}<li>{{ w }}</li>{% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.textContent = 'Analyzing…';
+            btn.disabled = true;
+        });
+    </script>
+</body>
+</html>
