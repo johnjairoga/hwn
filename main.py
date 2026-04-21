@@ -9,7 +9,7 @@ import pdfplumber
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from starlette.templating import Jinja2Templates
 
 load_dotenv()
 
