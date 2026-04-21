@@ -19,14 +19,17 @@ logger = logging.getLogger(__name__)
 logger.info("HireWithNear app starting - v1.0 with Starlette Jinja2Templates")
 
 app = FastAPI(title="HireWithNear – AI Candidate Evaluator")
-
-# Use absolute path for templates directory
-base_dir = Path(__file__).parent.absolute()
-template_dir = base_dir / "templates"
-logger.info(f"Template directory: {template_dir} (exists: {template_dir.exists()})")
-
-templates = Jinja2Templates(directory=str(template_dir))
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+# Load HTML template at startup
+def load_html_template():
+    base_dir = Path(__file__).parent.absolute()
+    template_path = base_dir / "templates" / "index.html"
+    logger.info(f"Loading template from: {template_path} (exists: {template_path.exists()})")
+    with open(template_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+HTML_TEMPLATE = load_html_template()
 
 MAX_CV_CHARS = 5000
 MAX_JD_CHARS = 3000
@@ -168,18 +171,67 @@ def parse_response(raw_response) -> dict:
         raise HTTPException(500, "AI response could not be parsed")
 
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "error": exc.detail},
-        status_code=exc.status_code,
-    )
+def render_template(error=None, result=None):
+    html = HTML_TEMPLATE
 
+    # Render error section
+    if error:
+        error_html = f'''<div class="error-card">
+            <strong>Error:</strong> {error}
+        </div>'''
+        html = html.replace("{% if error %}", "").replace("{% endif %}", "", 1)
+        html = html.replace("<strong>Error:</strong> {{ error }}", error_html.strip())
+    else:
+        # Remove error section
+        start = html.find("{% if error %}")
+        end = html.find("{% endif %}", start) + len("{% endif %}")
+        html = html[:start] + html[end:]
+
+    # Render result section
+    if result:
+        strengths_html = "".join(f"<li>{s}</li>" for s in result.get("strengths", []))
+        weaknesses_html = "".join(f"<li>{w}</li>" for w in result.get("weaknesses", []))
+
+        result_html = f'''<section class="result-card">
+            <h2>{result['display_match']}</h2>
+            <p class="summary">{result['summary']}</p>
+
+            <div class="score-bar">
+                <label>Match Score: {result['score']}/100</label>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {result['score']}%" data-fit="{result['fit']}"></div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <h3>Strengths</h3>
+                    <ul>
+                        {strengths_html}
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Areas for Improvement</h3>
+                    <ul>
+                        {weaknesses_html}
+                    </ul>
+                </div>
+            </div>
+        </section>'''
+
+        html = html.replace("{% if result %}", "").replace("{% endif %}", "", 1)
+        html = html.replace("<section class=\"result-card\">", result_html.split("<section")[0] + "<section")
+    else:
+        # Remove result section
+        start = html.find("{% if result %}")
+        end = html.find("{% endif %}", start) + len("{% endif %}")
+        html = html[:start] + html[end:]
+
+    return html
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return render_template()
 
 
 @app.post("/analyze", response_class=HTMLResponse)
@@ -194,7 +246,7 @@ async def analyze(
     if file.content_type not in ("application/pdf", "application/octet-stream") \
        or not (file.filename or "").lower().endswith(".pdf"):
         logger.error("Invalid file type: %s / %s", file.filename, file.content_type)
-        raise HTTPException(400, "Only PDF files are accepted")
+        return render_template(error="Only PDF files are accepted")
 
     # Read file into memory
     file_bytes = await file.read()
@@ -202,21 +254,20 @@ async def analyze(
     # Validation: max 5MB
     if len(file_bytes) > MAX_FILE_SIZE:
         logger.error("File too large: %d bytes", len(file_bytes))
-        raise HTTPException(413, "PDF must be smaller than 5MB")
+        return render_template(error="PDF must be smaller than 5MB")
 
     # Validation: non-empty job description
     job_description = job_description.strip()
     if not job_description:
-        raise HTTPException(400, "Job description cannot be empty")
+        return render_template(error="Job description cannot be empty")
 
     # Truncate job description
     job_description = job_description[:MAX_JD_CHARS]
 
-    # Extract → call AI → render
-    cv_text = extract_text(file_bytes)
-    result = call_ai(job_description, cv_text)
-
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "result": result},
-    )
+    try:
+        # Extract → call AI → render
+        cv_text = extract_text(file_bytes)
+        result = call_ai(job_description, cv_text)
+        return render_template(result=result)
+    except HTTPException as e:
+        return render_template(error=e.detail)
