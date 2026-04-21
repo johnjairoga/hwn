@@ -172,60 +172,37 @@ def parse_response(raw_response) -> dict:
 
 
 def render_template(error=None, result=None):
+    import re
     html = HTML_TEMPLATE
 
-    # Render error section
-    if error:
-        error_html = f'''<div class="error-card">
-            <strong>Error:</strong> {error}
-        </div>'''
-        html = html.replace("{% if error %}", "").replace("{% endif %}", "", 1)
-        html = html.replace("<strong>Error:</strong> {{ error }}", error_html.strip())
+    # Remove error section if no error
+    if not error:
+        html = re.sub(r'{%\s*if error\s*%\}.*?{%\s*endif\s*%\}', '', html, flags=re.DOTALL)
     else:
-        # Remove error section
-        start = html.find("{% if error %}")
-        end = html.find("{% endif %}", start) + len("{% endif %}")
-        html = html[:start] + html[end:]
+        # Replace error template with actual error
+        error_block = f'<div class="error-card">\n            <strong>Error:</strong> {error}\n        </div>'
+        html = re.sub(r'{%\s*if error\s*%\}.*?<strong>Error:</strong>\s*{{{{.*?}}}}\n.*?{%\s*endif\s*%\}',
+                      error_block, html, flags=re.DOTALL)
 
-    # Render result section
-    if result:
+    # Remove result section if no result
+    if not result:
+        html = re.sub(r'{%\s*if result\s*%\}.*?{%\s*endif\s*%\}', '', html, flags=re.DOTALL)
+    else:
+        # Build strengths and weaknesses lists
         strengths_html = "".join(f"<li>{s}</li>" for s in result.get("strengths", []))
         weaknesses_html = "".join(f"<li>{w}</li>" for w in result.get("weaknesses", []))
 
-        result_html = f'''<section class="result-card">
-            <h2>{result['display_match']}</h2>
-            <p class="summary">{result['summary']}</p>
-
-            <div class="score-bar">
-                <label>Match Score: {result['score']}/100</label>
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: {result['score']}%" data-fit="{result['fit']}"></div>
-                </div>
-            </div>
-
-            <div class="columns">
-                <div class="column">
-                    <h3>Strengths</h3>
-                    <ul>
-                        {strengths_html}
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>Areas for Improvement</h3>
-                    <ul>
-                        {weaknesses_html}
-                    </ul>
-                </div>
-            </div>
-        </section>'''
-
-        html = html.replace("{% if result %}", "").replace("{% endif %}", "", 1)
-        html = html.replace("<section class=\"result-card\">", result_html.split("<section")[0] + "<section")
-    else:
-        # Remove result section
-        start = html.find("{% if result %}")
-        end = html.find("{% endif %}", start) + len("{% endif %}")
-        html = html[:start] + html[end:]
+        # Replace template variables in result section
+        result_section = re.search(r'{%\s*if result\s*%\}(.*?){%\s*endif\s*%\}', html, re.DOTALL)
+        if result_section:
+            content = result_section.group(1)
+            content = content.replace("{{ result.display_match }}", result['display_match'])
+            content = content.replace("{{ result.summary }}", result['summary'])
+            content = content.replace("{{ result.score }}", str(result['score']))
+            content = content.replace('data-fit="{{ result.fit }}"', f'data-fit="{result["fit"]}"')
+            content = re.sub(r'{%\s*for s in result\.strengths\s*%\}.*?{%\s*endfor\s*%\}', strengths_html, content, flags=re.DOTALL)
+            content = re.sub(r'{%\s*for w in result\.weaknesses\s*%\}.*?{%\s*endfor\s*%\}', weaknesses_html, content, flags=re.DOTALL)
+            html = html.replace(result_section.group(0), content)
 
     return html
 
